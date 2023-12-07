@@ -12,9 +12,12 @@ from importer.StrategyImporter import StrategyImporter
 GAMES = 20000
 SHOE_SIZE = 6
 SHOE_PENETRATION = 0.25
-BET_SPREAD = 20.0
-
+BET_SPREAD = 0  # 20.0
+BET_MULTIPLIER = 2
+MAX_BET = 4
+STARTING_BET = 0.01
 DECK_SIZE = 52.0
+
 CARDS = {"Ace": 11, "Two": 2, "Three": 3, "Four": 4, "Five": 5, "Six": 6, "Seven": 7, "Eight": 8, "Nine": 9, "Ten": 10, "Jack": 10, "Queen": 10, "King": 10}
 BASIC_OMEGA_II = {"Ace": 0, "Two": 1, "Three": 1, "Four": 2, "Five": 2, "Six": 2, "Seven": 1, "Eight": 0, "Nine": -1, "Ten": -2, "Jack": -2, "Queen": -2, "King": -2}
 
@@ -377,6 +380,7 @@ class Game(object):
         self.stake = 1.0
         self.player = Player()
         self.dealer = Dealer()
+        self.losses = 0
 
     def get_hand_winnings(self, hand):
         win = 0.0
@@ -421,10 +425,15 @@ class Game(object):
         return win, bet
 
     def play_round(self):
-        if self.shoe.truecount() > 6:
-            self.stake = BET_SPREAD
+        # if self.shoe.truecount() > 6:
+        #     self.stake = BET_SPREAD
+        # else:
+        #     self.stake = 1.0
+
+        if self.losses >= 4:
+            self.stake = 3
         else:
-            self.stake = 1.0
+            self.stake = self.losses + 1
 
         player_hand = Hand([self.shoe.deal(), self.shoe.deal()])
         dealer_hand = Hand([self.shoe.deal()])
@@ -440,8 +449,14 @@ class Game(object):
 
         for hand in self.player.hands:
             win, bet = self.get_hand_winnings(hand)
+            # print(hand)
+            if win <= 0 and self.losses < 4:
+                self.losses += 1
+            else:
+                self.losses = 0
             self.money += win
             self.bet += bet
+            # print(bet)
             # print "Player Hand: %s %s (Value: %d, Busted: %r, BlackJack: %r, Splithand: %r, Soft: %r, Surrender: %r, Doubled: %r)" % (hand, status, hand.value, hand.busted(), hand.blackjack(), hand.splithand, hand.soft(), hand.surrender, hand.doubled)
 
         # print "Dealer Hand: %s (%d)" % (self.dealer.hand, self.dealer.hand.value)
@@ -474,22 +489,22 @@ if __name__ == "__main__":
 
         print("WIN for Game no. %d: %s (%s bet)" % (g + 1, "{0:.2f}".format(game.get_money()), "{0:.2f}".format(game.get_bet())))
 
-    sume = 0.0
+    sum = 0.0
     total_bet = 0.0
     for value in moneys:
-        sume += value
+        sum += value
     for value in bets:
         total_bet += value
 
-    print "\n%d hands overall, %0.2f hands per game on average" % (nb_hands, float(nb_hands) / GAMES)
-    print "%0.2f total bet" % total_bet
-    print("Overall winnings: {} (edge = {} %)".format("{0:.2f}".format(sume), "{0:.3f}".format(100.0*sume/total_bet)))
+    print("\n%d hands overall, %0.2f hands per game on average" % (nb_hands, float(nb_hands) / GAMES))
+    print ("%0.2f total bet" % total_bet)
+    print("Overall winnings: {} (edge = {} %)".format("{0:.2f}".format(sum), "{0:.3f}".format(100.0*sum/total_bet)))
 
     moneys = sorted(moneys)
     fit = stats.norm.pdf(moneys, np.mean(moneys), np.std(moneys))  # this is a fitting indeed
-    pl.plot(moneys, fit, '-o')
-    pl.hist(moneys, normed=True)
-    pl.show()
+    plt.plot(moneys, fit, '-o')
+    plt.hist(moneys)
+    plt.show()
 
     plt.ylabel('count')
     plt.plot(countings, label='x')
